@@ -4,15 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lotto Tracker — Carrigan Group</title>
-
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-
   <style>
-    /* ── Reset & tokens ─────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --green:       #16a34a;
       --green-dark:  #15803d;
@@ -23,6 +18,8 @@
       --red-light:   #fee2e2;
       --blue:        #2563eb;
       --blue-light:  #dbeafe;
+      --purple:      #7c3aed;
+      --purple-light:#ede9fe;
       --gray-50:     #f9fafb;
       --gray-100:    #f3f4f6;
       --gray-200:    #e5e7eb;
@@ -34,623 +31,322 @@
       --shadow:      0 2px 8px rgba(0,0,0,.10);
       --shadow-lg:   0 8px 24px rgba(0,0,0,.14);
     }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--gray-100); color: var(--gray-900); min-height: 100vh; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--gray-100);
-      color: var(--gray-900);
-      min-height: 100vh;
-    }
-
-    /* ── Auth overlay ───────────────────────────────────────── */
-    #auth-screen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
-    }
-
-    .auth-card {
-      background: white;
-      border-radius: 18px;
-      padding: 40px 36px;
-      width: 360px;
-      box-shadow: var(--shadow-lg);
-      text-align: center;
-    }
-
-    .auth-card .lottery-icon {
-      font-size: 52px;
-      margin-bottom: 6px;
-    }
-
-    .auth-card h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--gray-900);
-      margin-bottom: 4px;
-    }
-
-    .auth-card p.subtitle {
-      color: var(--gray-500);
-      font-size: 14px;
-      margin-bottom: 28px;
-    }
-
-    .auth-card label {
-      display: block;
-      text-align: left;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--gray-700);
-      margin-bottom: 5px;
-    }
-
-    .auth-card select,
-    .auth-card input[type="password"] {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      font-size: 15px;
-      margin-bottom: 14px;
-      outline: none;
-      transition: border-color .2s;
-    }
-
-    .auth-card select:focus,
-    .auth-card input[type="password"]:focus {
-      border-color: var(--green);
-    }
-
-    .btn-primary {
-      width: 100%;
-      padding: 12px;
-      background: var(--green);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .2s;
-    }
-
+    /* ── Auth ── */
+    #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); }
+    .auth-card { background: white; border-radius: 18px; padding: 40px 36px; width: 360px; box-shadow: var(--shadow-lg); text-align: center; }
+    .auth-card .lottery-icon { font-size: 52px; margin-bottom: 6px; }
+    .auth-card h1 { font-size: 22px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+    .auth-card p.subtitle { color: var(--gray-500); font-size: 14px; margin-bottom: 28px; }
+    .auth-card label { display: block; text-align: left; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 5px; }
+    .auth-card select, .auth-card input[type="password"] { width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 15px; margin-bottom: 14px; outline: none; transition: border-color .2s; }
+    .auth-card select:focus, .auth-card input[type="password"]:focus { border-color: var(--green); }
+    .btn-primary { width: 100%; padding: 12px; background: var(--green); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; }
     .btn-primary:hover { background: var(--green-dark); }
+    .auth-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
 
-    .auth-error {
-      color: var(--red);
-      font-size: 13px;
-      margin-top: 10px;
-      display: none;
-    }
-
-    /* ── Main app ───────────────────────────────────────────── */
+    /* ── App shell ── */
     #app { display: none; }
-
-    header {
-      background: linear-gradient(135deg, #064e3b, #065f46);
-      color: white;
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 60px;
-      box-shadow: var(--shadow);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    header .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    header .user-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 14px;
-    }
-
-    .badge-admin {
-      background: var(--gold);
-      color: white;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 20px;
-      letter-spacing: .5px;
-    }
-
-    .btn-logout {
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.3);
-      color: white;
-      padding: 5px 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background .2s;
-    }
-
+    header { background: linear-gradient(135deg, #064e3b, #065f46); color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
+    header .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; }
+    header .user-info { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .badge-admin { background: var(--gold); color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: .5px; }
+    .btn-logout { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); color: white; padding: 5px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: background .2s; }
     .btn-logout:hover { background: rgba(255,255,255,.25); }
+    .btn-dream { background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: white; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s; letter-spacing: .3px; box-shadow: 0 2px 8px rgba(245,158,11,.4); }
+    .btn-dream:hover { transform: scale(1.05); box-shadow: 0 4px 14px rgba(245,158,11,.6); }
 
-    /* ── Nav tabs ───────────────────────────────────────────── */
-    .tab-bar {
-      display: flex;
-      background: white;
-      border-bottom: 1px solid var(--gray-200);
-      padding: 0 24px;
-      gap: 4px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .tab-btn {
-      padding: 14px 18px;
-      border: none;
-      background: none;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--gray-500);
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      transition: all .2s;
-      white-space: nowrap;
-    }
-
-    .tab-btn.active {
-      color: var(--green);
-      border-bottom-color: var(--green);
-      font-weight: 600;
-    }
-
+    /* ── Tabs ── */
+    .tab-bar { display: flex; background: white; border-bottom: 1px solid var(--gray-200); padding: 0 24px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-btn { padding: 14px 16px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--gray-500); cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); font-weight: 600; }
     .tab-btn:hover:not(.active) { color: var(--gray-700); }
 
-    /* ── Page content ───────────────────────────────────────── */
-    .page { display: none; padding: 24px; max-width: 900px; margin: 0 auto; }
+    /* ── Pages ── */
+    .page { display: none; padding: 24px; max-width: 920px; margin: 0 auto; }
     .page.active { display: block; }
 
-    /* ── Stats grid ─────────────────────────────────────────── */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-      margin-bottom: 28px;
-    }
+    /* ── Stats grid ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .stat-card { background: white; border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); text-align: center; }
+    .stat-card .stat-val { font-size: 26px; font-weight: 800; color: var(--green); line-height: 1; }
+    .stat-card .stat-val.gold   { color: var(--gold); }
+    .stat-card .stat-val.blue   { color: var(--blue); }
+    .stat-card .stat-val.purple { color: var(--purple); }
+    .stat-card .stat-val.red    { color: var(--red); }
+    .stat-card .stat-label { font-size: 11px; color: var(--gray-500); margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
 
-    .stat-card {
-      background: white;
-      border-radius: var(--radius);
-      padding: 18px 20px;
-      box-shadow: var(--shadow);
-      text-align: center;
-    }
-
-    .stat-card .stat-val {
-      font-size: 28px;
-      font-weight: 800;
-      color: var(--green);
-      line-height: 1;
-    }
-
-    .stat-card .stat-val.gold { color: var(--gold); }
-    .stat-card .stat-val.blue { color: var(--blue); }
-
-    .stat-card .stat-label {
-      font-size: 12px;
-      color: var(--gray-500);
-      margin-top: 4px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-    }
-
-    /* ── Cards ──────────────────────────────────────────────── */
-    .card {
-      background: white;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-
-    .card-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--gray-100);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .card-header h2 {
-      font-size: 16px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    /* ── Cards ── */
+    .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+    .card-header { padding: 16px 20px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .card-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
     .card-body { padding: 20px; }
 
-    /* ── Ticket grid ────────────────────────────────────────── */
-    .ticket-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-    }
-
-    /* ── Draw items ─────────────────────────────────────────── */
-    .draw-item {
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--gray-100);
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      transition: background .15s;
-    }
-
+    /* ── Draw items ── */
+    .draw-item { padding: 14px 20px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 14px; transition: background .15s; flex-wrap: wrap; }
     .draw-item:last-child { border-bottom: none; }
     .draw-item:hover { background: var(--gray-50); }
-
-    .draw-date-badge {
-      background: var(--green-light);
-      color: var(--green-dark);
-      border-radius: 8px;
-      padding: 6px 12px;
-      text-align: center;
-      min-width: 70px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .draw-details { flex: 1; }
+    .draw-date-badge { background: var(--green-light); color: var(--green-dark); border-radius: 8px; padding: 6px 10px; text-align: center; min-width: 68px; font-size: 11px; font-weight: 700; }
+    .draw-details { flex: 1; min-width: 0; }
     .draw-details .draw-title { font-weight: 600; font-size: 15px; }
     .draw-details .draw-meta  { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
-
-    .draw-numbers {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      margin-top: 6px;
-    }
-
-    .ball {
-      width: 30px; height: 30px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700;
-      color: white;
-    }
-
+    .draw-numbers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .ball { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
     .ball.white { background: var(--gray-700); }
     .ball.pb    { background: var(--red); }
     .ball.mb    { background: var(--gold); }
+    .win-tag { background: var(--gold-light); color: var(--gold); border: 1px solid var(--gold); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 
-    .win-tag {
-      background: var(--gold-light);
-      color: var(--gold);
-      border: 1px solid var(--gold);
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    /* ── Member contribution table ──────────────────────────── */
-    .member-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    .member-table th {
-      text-align: left;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--gray-500);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      padding: 0 16px 10px;
-    }
-
-    .member-table td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--gray-100);
-    }
-
+    /* ── Member table ── */
+    .member-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .member-table th { text-align: left; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .5px; padding: 0 16px 10px; }
+    .member-table td { padding: 10px 16px; border-bottom: 1px solid var(--gray-100); }
     .member-table tr:last-child td { border-bottom: none; }
-    .member-table tr:hover td      { background: var(--gray-50); }
-
-    .member-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: var(--green);
-      color: white;
-      font-weight: 700;
-      font-size: 13px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-      margin-right: 4px;
-    }
-
+    .member-table tr:hover td { background: var(--gray-50); }
+    .member-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--green); color: white; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px; vertical-align: middle; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
     .status-dot.paid   { background: var(--green); }
     .status-dot.unpaid { background: var(--red); }
 
-    /* ── Forms ──────────────────────────────────────────────── */
+    /* ── Forms ── */
     .form-group { margin-bottom: 16px; }
-
-    .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--gray-700);
-      margin-bottom: 5px;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color .2s;
-      font-family: inherit;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-      border-color: var(--green);
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
-    .form-row-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 14px;
-    }
-
-    .btn {
-      padding: 9px 18px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: all .2s;
-    }
-
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 5px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green); }
+    .form-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .btn { padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; }
     .btn-green  { background: var(--green);  color: white; }
     .btn-green:hover  { background: var(--green-dark); }
     .btn-red    { background: var(--red);    color: white; }
     .btn-red:hover    { filter: brightness(.9); }
     .btn-gold   { background: var(--gold);   color: white; }
-    .btn-outline {
-      background: white;
-      border: 1.5px solid var(--gray-200);
-      color: var(--gray-700);
-    }
+    .btn-gold:hover   { filter: brightness(.9); }
+    .btn-purple { background: var(--purple); color: white; }
+    .btn-purple:hover { filter: brightness(.9); }
+    .btn-outline { background: white; border: 1.5px solid var(--gray-200); color: var(--gray-700); }
     .btn-outline:hover { border-color: var(--green); color: var(--green); }
     .btn-sm { padding: 5px 12px; font-size: 12px; }
 
-    /* ── Toast ──────────────────────────────────────────────── */
-    #toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--gray-900);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      z-index: 9999;
-      transition: transform .3s ease;
-      pointer-events: none;
-    }
-
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--gray-900); color: white; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 9999; transition: transform .3s ease; pointer-events: none; }
     #toast.show { transform: translateX(-50%) translateY(0); }
 
-    /* ── Empty state ────────────────────────────────────────── */
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--gray-400);
-    }
-
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); }
     .empty-state .empty-icon { font-size: 40px; margin-bottom: 8px; }
     .empty-state p { font-size: 14px; }
 
-    /* ── Responsive ─────────────────────────────────────────── */
+    /* ── Numbers input ── */
+    .numbers-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .numbers-row input { width: 52px; text-align: center; padding: 8px 4px !important; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 500; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 14px; width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+    .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--gray-100); font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+    .modal-body { padding: 22px; }
+    .modal-footer { padding: 14px 22px; border-top: 1px solid var(--gray-100); display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-close-modal { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-400); line-height: 1; }
+
+    /* ── Member check grid ── */
+    .member-check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
+    .member-check-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; cursor: pointer; transition: all .15s; user-select: none; }
+    .member-check-item:hover  { border-color: var(--green); background: var(--green-light); }
+    .member-check-item.checked { border-color: var(--green); background: var(--green-light); }
+    .member-check-item input { display: none; }
+
+    /* ── Wins ── */
+    .win-card { background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1.5px solid var(--gold); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; display: flex; align-items: flex-start; gap: 16px; }
+    .win-card .win-emoji { font-size: 32px; }
+    .win-card .win-body { flex: 1; }
+    .win-card .win-amount { font-size: 22px; font-weight: 800; color: var(--gold); }
+    .win-card .win-meta { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
+    .win-card .win-payout { font-size: 13px; color: var(--green); font-weight: 600; margin-top: 4px; }
+
+    /* ── ROI bar ── */
+    .roi-bar-wrap { background: var(--gray-100); border-radius: 20px; height: 12px; overflow: hidden; margin: 8px 0 4px; }
+    .roi-bar { height: 12px; border-radius: 20px; background: linear-gradient(90deg, var(--green), #4ade80); transition: width .6s ease; }
+    .roi-bar.negative { background: linear-gradient(90deg, var(--red), #f87171); }
+
+    /* ── Lotto Max ── */
+    .lm-ball { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; }
+    .lm-ball.white  { background: #1d4ed8; }
+    .lm-ball.bonus  { background: #b45309; }
+    .lm-draw-item { padding: 14px 20px; border-bottom: 1px solid var(--gray-100); }
+    .lm-draw-item:last-child { border-bottom: none; }
+    .lm-draw-item:hover { background: var(--gray-50); }
+    .lm-draw-header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+    .lm-date-badge { background: #dbeafe; color: #1e40af; border-radius: 8px; padding: 6px 10px; text-align: center; min-width: 68px; font-size: 11px; font-weight: 700; }
+    .lm-jackpot-badge { background: var(--gold-light); color: var(--gold); border: 1px solid var(--gold); padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+
+    /* ── Live Draw card ── */
+    .live-draw-card { background: linear-gradient(135deg, #1e3a5f, #1e40af); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 20px; color: white; position: relative; overflow: hidden; }
+    .live-draw-card::before { content: '🍀'; position: absolute; right: 20px; top: 10px; font-size: 60px; opacity: .15; }
+    .live-draw-card .live-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #93c5fd; margin-bottom: 4px; }
+    .live-draw-card .live-date { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
+    .live-draw-card .live-jackpot { font-size: 28px; font-weight: 900; color: #fbbf24; margin-bottom: 14px; }
+    .live-draw-card .live-balls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .live-ball { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; }
+    .live-ball.main  { background: white; color: #1e3a5f; }
+    .live-ball.bonus { background: #fbbf24; color: #1e3a5f; }
+    .live-loading { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #93c5fd; }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .next-draw-banner { background: rgba(255,255,255,.1); border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .countdown-digits { font-weight: 800; color: #fbbf24; }
+
+    /* ── Wave cards ── */
+    .wave-card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); border-left: 4px solid var(--blue); margin-bottom: 16px; overflow: hidden; }
+    .wave-card.complete  { border-left-color: var(--green); }
+    .wave-card.past      { border-left-color: var(--gray-400); opacity: .85; }
+    .wave-header { padding: 16px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .wave-name { font-size: 16px; font-weight: 700; color: var(--gray-900); }
+    .wave-meta { font-size: 12px; color: var(--gray-500); margin-top: 3px; }
+    .wave-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .wave-status.open     { background: var(--blue-light); color: var(--blue); }
+    .wave-status.closed   { background: var(--green-light); color: var(--green); }
+    .wave-status.past     { background: var(--gray-100); color: var(--gray-500); }
+    .wave-body { padding: 0 20px 16px; }
+    .wave-progress { margin-bottom: 12px; }
+    .wave-progress-bar-wrap { background: var(--gray-100); border-radius: 20px; height: 8px; margin: 6px 0; overflow: hidden; }
+    .wave-progress-bar { height: 8px; border-radius: 20px; background: linear-gradient(90deg, var(--green), #4ade80); transition: width .5s; }
+    .wave-members-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .wave-member-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .wave-member-chip.paid   { background: var(--green-light); color: var(--green-dark); }
+    .wave-member-chip.unpaid { background: var(--red-light); color: var(--red); }
+    .wave-numbers-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gray-100); }
+    .wave-numbers-title { font-size: 12px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .wave-ticket-line { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+    .wave-outcome { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+    .wave-outcome.win    { background: var(--gold-light); color: var(--gold); }
+    .wave-outcome.no-win { background: var(--gray-100); color: var(--gray-500); }
+
+    /* ── Ticket card ── */
+    .ticket-card { background: white; border: 1.5px solid var(--gray-200); border-radius: var(--radius); padding: 14px 16px; }
+    .ticket-card .ticket-draw-name { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 8px; }
+    .ticket-card .ticket-line { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+    .ticket-card .ticket-line:last-child { margin-bottom: 0; }
+    .ticket-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+    /* ── Responsive ── */
     @media (max-width: 640px) {
       .page { padding: 16px; }
       .form-row, .form-row-3 { grid-template-columns: 1fr; }
-      .tab-btn { padding: 12px 12px; font-size: 13px; }
+      .tab-btn { padding: 12px 10px; font-size: 12px; }
+      header { padding: 0 14px; }
+      .btn-dream { padding: 5px 10px; font-size: 12px; }
     }
 
-    /* ── Numbers input row ──────────────────────────────────── */
-    .numbers-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .numbers-row input {
-      width: 52px;
-      text-align: center;
-      padding: 8px 4px !important;
-    }
-
-    /* ── Modal ──────────────────────────────────────────────── */
-    .modal-overlay {
+    /* ════════════════════════════════════════════
+       DREAM SCREEN
+    ════════════════════════════════════════════ */
+    #dream-screen {
       display: none;
       position: fixed; inset: 0;
-      background: rgba(0,0,0,.5);
-      z-index: 500;
-      align-items: center;
-      justify-content: center;
+      z-index: 10000;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1a0a00, #3d1a00, #1a0a00);
+      transition: background 1s;
+    }
+    #dream-screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #dream-screen.gold-bg { background: linear-gradient(135deg, #78350f, #d97706, #78350f); animation: bgShift 3s ease-in-out infinite alternate; }
+    @keyframes bgShift {
+      0%   { background: linear-gradient(135deg, #78350f 0%, #d97706 50%, #7c2d12 100%); }
+      100% { background: linear-gradient(135deg, #92400e 0%, #f59e0b 50%, #78350f 100%); }
     }
 
-    .modal-overlay.open { display: flex; }
-
-    .modal {
-      background: white;
-      border-radius: 14px;
-      width: 500px;
-      max-width: 95vw;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: var(--shadow-lg);
+    /* Rain sprites */
+    .dream-rain { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+    .rain-sprite {
+      position: absolute;
+      top: -80px;
+      animation: rainFall linear infinite;
+      user-select: none;
+      pointer-events: none;
+    }
+    @keyframes rainFall {
+      0%   { transform: translateY(0) rotate(0deg);   opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
     }
 
-    .modal-header {
-      padding: 18px 22px;
-      border-bottom: 1px solid var(--gray-100);
-      font-size: 17px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    /* Burst sprites */
+    .dream-burst { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .burst-sprite {
+      position: absolute;
+      top: 50%; left: 50%;
+      font-size: 28px;
+      animation: burstOut ease-out forwards;
+      transform-origin: center;
+    }
+    @keyframes burstOut {
+      0%   { transform: translate(-50%,-50%) scale(0) rotate(0deg); opacity: 1; }
+      60%  { opacity: 1; }
+      100% { transform: translate(var(--bx), var(--by)) scale(1) rotate(var(--br)); opacity: 0; }
     }
 
-    .modal-body { padding: 22px; }
-
-    .modal-footer {
-      padding: 14px 22px;
-      border-top: 1px solid var(--gray-100);
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
+    /* Bouncing chars */
+    .dream-bounce { position: absolute; bottom: 60px; width: 100%; display: flex; justify-content: center; gap: 20px; pointer-events: none; }
+    .bounce-sprite { font-size: 36px; animation: bounceUp ease-in-out infinite; }
+    @keyframes bounceUp {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-30px) scale(1.15); }
     }
 
-    .btn-close-modal {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      color: var(--gray-400);
-      line-height: 1;
+    /* Jackpot text */
+    .jackpot-text {
+      font-size: clamp(48px, 10vw, 100px);
+      font-weight: 900;
+      color: #fbbf24;
+      text-align: center;
+      letter-spacing: 4px;
+      animation: jackpotPulse 1.2s ease-in-out infinite;
+      text-shadow: 0 0 20px #f59e0b, 0 0 50px #d97706, 0 0 80px #b45309;
+      z-index: 2;
+      position: relative;
+    }
+    @keyframes jackpotPulse {
+      0%, 100% { text-shadow: 0 0 20px #f59e0b, 0 0 50px #d97706;  transform: scale(1); }
+      50%       { text-shadow: 0 0 40px #fbbf24, 0 0 100px #f59e0b, 0 0 140px #fcd34d; transform: scale(1.06); }
     }
 
-    /* ── Contribution checkboxes ────────────────────────────── */
-    .member-check-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 8px;
-      margin-top: 8px;
+    /* Jackpot sub */
+    .jackpot-sub { font-size: clamp(16px, 4vw, 28px); color: white; font-weight: 700; text-align: center; margin-top: 6px; opacity: .85; z-index: 2; position: relative; }
+
+    /* Number reveal */
+    .jackpot-numbers { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 20px 0; z-index: 2; position: relative; }
+    .jackpot-num { width: 52px; height: 52px; border-radius: 50%; background: white; color: #1e3a5f; font-size: 18px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+    .jackpot-num.reveal { animation: spinReveal .8s ease-out forwards; }
+    @keyframes spinReveal {
+      0%   { transform: rotateY(0deg) scale(0); opacity: 0; }
+      50%  { transform: rotateY(180deg) scale(0.5); opacity: 0.5; }
+      100% { transform: rotateY(360deg) scale(1); opacity: 1; }
     }
 
-    .member-check-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all .15s;
+    /* Dream close btn */
+    .dream-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.4); color: white; font-size: 22px; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s; z-index: 20; }
+    .dream-close:hover { background: rgba(255,255,255,.35); }
+
+    /* Stars field */
+    .dream-stars { position: absolute; inset: 0; pointer-events: none; }
+    .star-particle { position: absolute; border-radius: 50%; background: white; animation: twinkle ease-in-out infinite; }
+    @keyframes twinkle {
+      0%, 100% { opacity: .3; transform: scale(1); }
+      50%       { opacity: 1;  transform: scale(1.6); }
     }
-
-    .member-check-item:hover  { border-color: var(--green); background: var(--green-light); }
-    .member-check-item.checked { border-color: var(--green); background: var(--green-light); }
-
-    .member-check-item input { display: none; }
-
-    .member-check-item .check-icon { font-size: 14px; }
-
-    /* ── Wins page ──────────────────────────────────────────── */
-    .win-card {
-      background: linear-gradient(135deg, #fffbeb, #fef3c7);
-      border: 1.5px solid var(--gold);
-      border-radius: var(--radius);
-      padding: 18px 20px;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-    }
-
-    .win-card .win-emoji { font-size: 32px; }
-
-    .win-card .win-body { flex: 1; }
-
-    .win-card .win-amount {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--gold);
-    }
-
-    .win-card .win-meta { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
-
-    .win-card .win-payout {
-      font-size: 13px;
-      color: var(--green);
-      font-weight: 600;
-      margin-top: 4px;
-    }
-
-    /* ── Ticket/numbers display ─────────────────────────────── */
-    .ticket-card {
-      background: white;
-      border: 1.5px solid var(--gray-200);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-    }
-
-    .ticket-card .ticket-draw-name {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--gray-700);
-      margin-bottom: 8px;
-    }
-
-    .ticket-card .ticket-line {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      margin-bottom: 6px;
-    }
-
-    .ticket-card .ticket-line:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     AUTH SCREEN
-════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════ AUTH ═══════════════ -->
 <div id="auth-screen">
   <div class="auth-card">
     <div class="lottery-icon">🎰</div>
     <h1>Lotto Tracker</h1>
     <p class="subtitle">Carrigan Group — 7 Members</p>
-
     <label for="auth-name">Who are you?</label>
     <select id="auth-name">
       <option value="">— Select your name —</option>
@@ -662,22 +358,19 @@
       <option value="Sam">Sam</option>
       <option value="Susanne">Susanne</option>
     </select>
-
     <label for="auth-pass">Password</label>
     <input type="password" id="auth-pass" placeholder="Enter group password" />
-
     <button class="btn-primary" onclick="doLogin()">Sign In →</button>
     <div class="auth-error" id="auth-error">Incorrect password. Try again.</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MAIN APP
-════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════ APP ═══════════════ -->
 <div id="app">
   <header>
     <div class="brand">🎰 <span>Lotto Tracker</span></div>
     <div class="user-info">
+      <button class="btn-dream" onclick="openDreamScreen()">🌟 Dream</button>
       <span id="hdr-user"></span>
       <span class="badge-admin" id="hdr-admin-badge" style="display:none">ADMIN</span>
       <button class="btn-logout" onclick="doLogout()">Sign Out</button>
@@ -685,20 +378,34 @@
   </header>
 
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="dashboard"  onclick="switchTab('dashboard')">📊 Dashboard</button>
-    <button class="tab-btn"        data-tab="draws"      onclick="switchTab('draws')">🎫 Draws</button>
-    <button class="tab-btn"        data-tab="tickets"    onclick="switchTab('tickets')">🎟️ Tickets</button>
-    <button class="tab-btn"        data-tab="members"    onclick="switchTab('members')">👥 Members</button>
-    <button class="tab-btn"        data-tab="wins"       onclick="switchTab('wins')">🏆 Wins</button>
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" data-tab="waves"     onclick="switchTab('waves')">🌊 Waves</button>
+    <button class="tab-btn" data-tab="draws"     onclick="switchTab('draws')">🎫 Draws</button>
+    <button class="tab-btn" data-tab="tickets"   onclick="switchTab('tickets')">🎟️ Tickets</button>
+    <button class="tab-btn" data-tab="members"   onclick="switchTab('members')">👥 Members</button>
+    <button class="tab-btn" data-tab="wins"      onclick="switchTab('wins')">🏆 Wins</button>
+    <button class="tab-btn" data-tab="lottomax"  onclick="switchTab('lottomax')">🍀 Lotto Max</button>
   </div>
 
-  <!-- ── Dashboard ── -->
+  <!-- ─── Dashboard ─── -->
   <div class="page active" id="page-dashboard">
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card"><div class="stat-val" id="stat-draws">0</div><div class="stat-label">Total Draws</div></div>
       <div class="stat-card"><div class="stat-val gold" id="stat-wins">$0</div><div class="stat-label">Total Won</div></div>
-      <div class="stat-card"><div class="stat-val blue" id="stat-spent">$0</div><div class="stat-label">Total Spent</div></div>
+      <div class="stat-card"><div class="stat-val blue" id="stat-spent">$0</div><div class="stat-label">Total Contributed</div></div>
+      <div class="stat-card"><div class="stat-val purple" id="stat-roi">0%</div><div class="stat-label">ROI</div></div>
       <div class="stat-card"><div class="stat-val" id="stat-members">7</div><div class="stat-label">Members</div></div>
+    </div>
+
+    <!-- Next draw countdown -->
+    <div id="next-draw-banner-dash" class="card" style="background:linear-gradient(135deg,#1e3a5f,#1e40af);color:white;border:none;margin-bottom:20px;">
+      <div class="card-body" style="padding:16px 20px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;margin-bottom:4px;">Next Lotto Max Draw</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:18px;font-weight:800;" id="dash-next-date">—</div>
+          <div id="dash-countdown" style="font-size:13px;color:#bfdbfe;"></div>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -707,16 +414,114 @@
         <div class="empty-state"><div class="empty-icon">🎫</div><p>No draws recorded yet.</p></div>
       </div>
     </div>
-
     <div class="card">
       <div class="card-header"><h2>🏆 Recent Wins</h2></div>
       <div id="recent-wins-list" style="padding:16px">
         <div class="empty-state"><div class="empty-icon">🏆</div><p>No wins recorded yet.</p></div>
       </div>
     </div>
+    <div class="card">
+      <div class="card-header"><h2>🌊 Active Waves</h2></div>
+      <div id="dash-waves-list">
+        <div class="empty-state"><div class="empty-icon">🌊</div><p>No active waves.</p></div>
+      </div>
+    </div>
   </div>
 
-  <!-- ── Draws ── -->
+  <!-- ─── Waves ─── -->
+  <div class="page" id="page-waves">
+    <div id="admin-wave-section" style="display:none; margin-bottom:20px;">
+      <div class="card">
+        <div class="card-header"><h2>➕ Create New Wave</h2></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Wave Name</label>
+              <input type="text" id="wave-name" placeholder="e.g. Wave 5 – May Draw" />
+            </div>
+            <div class="form-group">
+              <label>Target Contribution / Person ($)</label>
+              <input type="number" id="wave-target" placeholder="10" min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Payment Deadline</label>
+              <input type="date" id="wave-deadline" />
+            </div>
+            <div class="form-group">
+              <label>Lotto Max Draw Date</label>
+              <input type="date" id="wave-drawdate" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Who has paid?</label>
+            <div class="member-check-grid" id="wave-paid-grid"></div>
+          </div>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <input type="text" id="wave-notes" placeholder="Any extra notes…" />
+          </div>
+          <button class="btn btn-green" onclick="submitWave()">Create Wave 🌊</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Wave Modal -->
+    <div class="modal-overlay" id="wave-edit-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <span>✏️ Update Wave</span>
+          <button class="btn-close-modal" onclick="closeWaveModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="edit-wave-id" />
+          <div class="form-group">
+            <label>Wave Name</label>
+            <input type="text" id="edit-wave-name" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tickets Bought</label>
+              <input type="number" id="edit-wave-tickets" placeholder="0" min="0" />
+            </div>
+            <div class="form-group">
+              <label>Outcome</label>
+              <input type="text" id="edit-wave-outcome" placeholder="e.g. No win / Free play / $50" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Numbers Played (one line per ticket, comma-separated)</label>
+            <textarea id="edit-wave-numbers" rows="4" placeholder="7,14,21,28,35,42,49&#10;1,2,3,4,5,6,7"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Who has paid?</label>
+            <div class="member-check-grid" id="wave-edit-paid-grid"></div>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input type="text" id="edit-wave-notes" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeWaveModal()">Cancel</button>
+          <button class="btn btn-green" onclick="saveWaveEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>🌊 All Waves</h2>
+        <span style="font-size:13px;color:var(--gray-500)" id="waves-count"></span>
+      </div>
+      <div id="waves-list" style="padding:16px;">
+        <div class="empty-state"><div class="empty-icon">🌊</div><p>No waves yet. Create one above!</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Draws ─── -->
   <div class="page" id="page-draws">
     <div id="admin-draw-section" style="display:none; margin-bottom:20px;">
       <div class="card">
@@ -726,9 +531,10 @@
             <div class="form-group">
               <label>Lottery</label>
               <select id="draw-lottery">
+                <option value="Lotto Max">Lotto Max</option>
+                <option value="Lotto 649">Lotto 649</option>
                 <option value="Powerball">Powerball</option>
                 <option value="Mega Millions">Mega Millions</option>
-                <option value="Lucky for Life">Lucky for Life</option>
                 <option value="Other">Other</option>
               </select>
             </div>
@@ -740,42 +546,36 @@
           <div class="form-row">
             <div class="form-group">
               <label>Jackpot Amount</label>
-              <input type="text" id="draw-jackpot" placeholder="e.g. $250M" />
+              <input type="text" id="draw-jackpot" placeholder="e.g. $70M" />
             </div>
             <div class="form-group">
               <label>Cost per Member ($)</label>
               <input type="number" id="draw-cost" placeholder="5" min="0" step="0.01" />
             </div>
           </div>
-
           <div class="form-group">
             <label>Winning Numbers (leave blank if not drawn yet)</label>
             <div class="numbers-row" id="winning-numbers-row">
-              <input type="number" class="win-num" min="1" max="69" placeholder="1" title="Ball 1" />
-              <input type="number" class="win-num" min="1" max="69" placeholder="2" title="Ball 2" />
-              <input type="number" class="win-num" min="1" max="69" placeholder="3" title="Ball 3" />
-              <input type="number" class="win-num" min="1" max="69" placeholder="4" title="Ball 4" />
-              <input type="number" class="win-num" min="1" max="69" placeholder="5" title="Ball 5" />
+              <input type="number" class="win-num" min="1" max="69" placeholder="1" />
+              <input type="number" class="win-num" min="1" max="69" placeholder="2" />
+              <input type="number" class="win-num" min="1" max="69" placeholder="3" />
+              <input type="number" class="win-num" min="1" max="69" placeholder="4" />
+              <input type="number" class="win-num" min="1" max="69" placeholder="5" />
               <input type="number" class="win-num pb" min="1" max="26" placeholder="PB" title="Powerball" style="border-color:#dc2626" />
             </div>
           </div>
-
           <div class="form-group">
             <label>Who paid?</label>
-            <div class="member-check-grid" id="paid-members-grid">
-              <!-- populated by JS -->
-            </div>
+            <div class="member-check-grid" id="paid-members-grid"></div>
           </div>
-
           <button class="btn btn-green" onclick="submitDraw()">Save Draw</button>
         </div>
       </div>
     </div>
-
     <div class="card">
       <div class="card-header">
         <h2>🎫 All Draws</h2>
-        <span style="font-size:13px; color:var(--gray-500)" id="draws-count"></span>
+        <span style="font-size:13px;color:var(--gray-500)" id="draws-count"></span>
       </div>
       <div id="draws-list">
         <div class="empty-state"><div class="empty-icon">🎫</div><p>No draws yet.</p></div>
@@ -783,7 +583,7 @@
     </div>
   </div>
 
-  <!-- ── Tickets ── -->
+  <!-- ─── Tickets ─── -->
   <div class="page" id="page-tickets">
     <div id="admin-ticket-section" style="display:none; margin-bottom:20px;">
       <div class="card">
@@ -792,23 +592,18 @@
           <div class="form-row">
             <div class="form-group">
               <label>For Draw</label>
-              <select id="ticket-draw-select">
-                <option value="">— Select Draw —</option>
-              </select>
+              <select id="ticket-draw-select"><option value="">— Select Draw —</option></select>
             </div>
             <div class="form-group">
               <label>Lines (sets of numbers)</label>
               <input type="number" id="ticket-lines" value="1" min="1" max="20" />
             </div>
           </div>
-          <div id="ticket-lines-container">
-            <!-- dynamic lines -->
-          </div>
+          <div id="ticket-lines-container"></div>
           <button class="btn btn-green" onclick="submitTicket()">Save Ticket</button>
         </div>
       </div>
     </div>
-
     <div class="card">
       <div class="card-header"><h2>🎟️ All Tickets</h2></div>
       <div id="tickets-list" class="card-body">
@@ -817,7 +612,7 @@
     </div>
   </div>
 
-  <!-- ── Members ── -->
+  <!-- ─── Members ─── -->
   <div class="page" id="page-members">
     <div class="card" style="margin-bottom:20px">
       <div class="card-header"><h2>👥 Member Summary</h2></div>
@@ -827,16 +622,15 @@
             <tr>
               <th>Member</th>
               <th>Draws Joined</th>
-              <th>Contributions</th>
+              <th>Contributed</th>
               <th>Winnings Share</th>
+              <th>Net</th>
             </tr>
           </thead>
-          <tbody id="members-tbody">
-          </tbody>
+          <tbody id="members-tbody"></tbody>
         </table>
       </div>
     </div>
-
     <div class="card">
       <div class="card-header"><h2>💵 Contribution Details</h2></div>
       <div id="contrib-detail-list">
@@ -845,8 +639,23 @@
     </div>
   </div>
 
-  <!-- ── Wins ── -->
+  <!-- ─── Wins ─── -->
   <div class="page" id="page-wins">
+    <!-- ROI Summary -->
+    <div id="roi-summary-card" class="card" style="margin-bottom:20px;">
+      <div class="card-body">
+        <div style="font-size:13px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">📈 Group ROI</div>
+        <div class="stats-grid" style="margin-bottom:12px;">
+          <div class="stat-card"><div class="stat-val blue" id="roi-contributed">$0</div><div class="stat-label">Total Contributed</div></div>
+          <div class="stat-card"><div class="stat-val gold" id="roi-won">$0</div><div class="stat-label">Total Won</div></div>
+          <div class="stat-card"><div class="stat-val purple" id="roi-net">$0</div><div class="stat-label">Net</div></div>
+          <div class="stat-card"><div class="stat-val" id="roi-pct">0%</div><div class="stat-label">Return Rate</div></div>
+        </div>
+        <div class="roi-bar-wrap"><div class="roi-bar" id="roi-bar" style="width:0%"></div></div>
+        <div style="font-size:12px;color:var(--gray-500);margin-top:4px;" id="roi-label-text">No data yet</div>
+      </div>
+    </div>
+
     <div id="admin-win-section" style="display:none; margin-bottom:20px;">
       <div class="card">
         <div class="card-header"><h2>🏆 Log a Win</h2></div>
@@ -854,9 +663,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>For Draw</label>
-              <select id="win-draw-select">
-                <option value="">— Select Draw —</option>
-              </select>
+              <select id="win-draw-select"><option value="">— Select Draw —</option></select>
             </div>
             <div class="form-group">
               <label>Prize Amount ($)</label>
@@ -868,20 +675,21 @@
               <label>Prize Tier</label>
               <select id="win-tier">
                 <option value="Jackpot">Jackpot 🎉</option>
+                <option value="Match 6+Bonus">Match 6 + Bonus</option>
+                <option value="Match 6">Match 6</option>
+                <option value="Match 5+Bonus">Match 5 + Bonus</option>
                 <option value="Match 5">Match 5</option>
-                <option value="Match 4+PB">Match 4 + PB</option>
+                <option value="Match 4+Bonus">Match 4 + Bonus</option>
                 <option value="Match 4">Match 4</option>
-                <option value="Match 3+PB">Match 3 + PB</option>
+                <option value="Match 3+Bonus">Match 3 + Bonus</option>
                 <option value="Match 3">Match 3</option>
-                <option value="Match 2+PB">Match 2 + PB</option>
-                <option value="Match 1+PB">Match 1 + PB</option>
-                <option value="Match PB">Match PB only</option>
+                <option value="Free Play">Free Play</option>
                 <option value="Other">Other</option>
               </select>
             </div>
             <div class="form-group">
               <label>Notes</label>
-              <input type="text" id="win-notes" placeholder="e.g. Matched 3 numbers" />
+              <input type="text" id="win-notes" placeholder="e.g. Free play ticket won" />
             </div>
           </div>
           <button class="btn btn-gold" onclick="submitWin()">Record Win 🏆</button>
@@ -889,22 +697,103 @@
       </div>
     </div>
 
-    <div id="wins-list">
-      <div class="empty-state"><div class="empty-icon">🏆</div><p>No wins recorded yet. Good luck next time!</p></div>
+    <!-- Per-draw breakdown -->
+    <div class="card">
+      <div class="card-header"><h2>🏅 Win History</h2></div>
+      <div id="wins-list">
+        <div class="empty-state"><div class="empty-icon">🏆</div><p>No wins yet. Good luck!</p></div>
+      </div>
     </div>
+  </div>
+
+  <!-- ─── Lotto Max ─── -->
+  <div class="page" id="page-lottomax">
+    <!-- Live data -->
+    <div class="live-draw-card" id="live-draw-card">
+      <div class="live-label">Latest Lotto Max Results</div>
+      <div id="live-draw-inner">
+        <div class="live-loading"><div class="spinner"></div> Fetching live draw data…</div>
+      </div>
+      <div id="next-draw-banner" class="next-draw-banner" style="display:none;">
+        ⏰ Next draw: <span class="countdown-digits" id="next-draw-date-text">—</span>
+        &nbsp;·&nbsp; <span id="next-draw-countdown"></span>
+      </div>
+    </div>
+
+    <div id="admin-lm-section" style="display:none; margin-bottom:20px;">
+      <div class="card">
+        <div class="card-header"><h2>➕ Log Lotto Max Draw</h2></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Draw Date</label>
+              <input type="date" id="lm-date" />
+            </div>
+            <div class="form-group">
+              <label>Jackpot Amount</label>
+              <input type="text" id="lm-jackpot" placeholder="e.g. $70M" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Winning Numbers — 7 main (1–50) + 1 bonus (1–50)</label>
+            <div class="numbers-row" id="lm-numbers-row">
+              <input type="number" class="lm-num" min="1" max="50" placeholder="1" />
+              <input type="number" class="lm-num" min="1" max="50" placeholder="2" />
+              <input type="number" class="lm-num" min="1" max="50" placeholder="3" />
+              <input type="number" class="lm-num" min="1" max="50" placeholder="4" />
+              <input type="number" class="lm-num" min="1" max="50" placeholder="5" />
+              <input type="number" class="lm-num" min="1" max="50" placeholder="6" />
+              <input type="number" class="lm-num" min="1" max="50" placeholder="7" />
+              <input type="number" class="lm-bonus" min="1" max="50" placeholder="B" style="border-color:#b45309" title="Bonus number" />
+            </div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:6px">🔵 Blue = main &nbsp;·&nbsp; 🟤 Brown = bonus</div>
+          </div>
+          <button class="btn btn-green" onclick="submitLottoMax()">Save Lotto Max Draw</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>🍀 Lotto Max Draw History</h2>
+        <span style="font-size:13px;color:var(--gray-500)" id="lm-count"></span>
+      </div>
+      <div id="lm-draws-list">
+        <div class="empty-state"><div class="empty-icon">🍀</div><p>No Lotto Max draws recorded yet.</p></div>
+      </div>
+    </div>
+  </div>
+</div><!-- end #app -->
+
+<!-- ═══════════════ DREAM SCREEN ═══════════════ -->
+<div id="dream-screen">
+  <button class="dream-close" onclick="closeDreamScreen()">✕</button>
+  <div class="dream-rain" id="dream-rain"></div>
+  <div class="dream-burst" id="dream-burst"></div>
+  <div class="dream-stars" id="dream-stars"></div>
+
+  <div class="jackpot-text" id="dream-jackpot-text">🎰 JACKPOT! 🎰</div>
+  <div class="jackpot-sub">Carrigan Group — We're all winners! 🥂</div>
+  <div class="jackpot-numbers" id="dream-numbers"></div>
+
+  <div class="dream-bounce" id="dream-bounce">
+    <span class="bounce-sprite" style="animation-delay:0s">💃</span>
+    <span class="bounce-sprite" style="animation-delay:.15s">🏆</span>
+    <span class="bounce-sprite" style="animation-delay:.3s">🕺</span>
+    <span class="bounce-sprite" style="animation-delay:.45s">🥂</span>
+    <span class="bounce-sprite" style="animation-delay:.6s">🎉</span>
+    <span class="bounce-sprite" style="animation-delay:.75s">💰</span>
+    <span class="bounce-sprite" style="animation-delay:.9s">🎊</span>
   </div>
 </div>
 
 <!-- Toast -->
 <div id="toast"></div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FIREBASE CONFIG + APP LOGIC
-════════════════════════════════════════════════════════════ -->
 <script>
-// ─────────────────────────────────────────────────
-//  FIREBASE CONFIG  (replace with real values)
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+//  FIREBASE CONFIG
+// ════════════════════════════════════════════════════
 const firebaseConfig = {
   apiKey:            "AIzaSyAA4pvw2YiZYxbZU22mCRavlENqYrXKc_k",
   authDomain:        "lotto-tracker-80842.firebaseapp.com",
@@ -915,35 +804,35 @@ const firebaseConfig = {
   appId:             "1:216094415783:web:eb803fd1b6f7973ded3482",
   measurementId:     "G-BYVK9Y8P5X"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// ─────────────────────────────────────────────────
-//  APP STATE
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+//  CONSTANTS & STATE
+// ════════════════════════════════════════════════════
 const MEMBERS    = ['Evan','Amanda','James','Matthew','Nicole','Sam','Susanne'];
 const GROUP_PASS = 'lotto2024';
 const ADMIN_PASS = 'admin2024';
 const ADMIN_NAME = 'Matthew';
 
-let currentUser  = null;
-let isAdmin      = false;
-let allDraws     = {};
-let allTickets   = {};
-let allWins      = {};
+let currentUser = null;
+let isAdmin     = false;
+let allDraws    = {};
+let allTickets  = {};
+let allWins     = {};
+let allLottoMax = {};
+let allWaves    = {};
+let countdownInterval = null;
 
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 //  AUTH
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 function doLogin() {
   const name = document.getElementById('auth-name').value;
   const pass = document.getElementById('auth-pass').value.trim();
   const err  = document.getElementById('auth-error');
   err.style.display = 'none';
-
   if (!name) { err.textContent = 'Please select your name.'; err.style.display = 'block'; return; }
-
   if (name === ADMIN_NAME && pass === ADMIN_PASS) {
     currentUser = name; isAdmin = true;
   } else if (pass === GROUP_PASS) {
@@ -953,37 +842,39 @@ function doLogin() {
     err.style.display = 'block';
     return;
   }
-
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('hdr-user').textContent = currentUser;
   document.getElementById('hdr-admin-badge').style.display = isAdmin ? 'inline' : 'none';
-
   if (isAdmin) {
     document.getElementById('admin-draw-section').style.display   = 'block';
     document.getElementById('admin-ticket-section').style.display = 'block';
     document.getElementById('admin-win-section').style.display    = 'block';
+    document.getElementById('admin-lm-section').style.display     = 'block';
+    document.getElementById('admin-wave-section').style.display   = 'block';
   }
-
   buildPaidMembersGrid();
+  buildWavePaidGrid('wave-paid-grid');
   setDefaultDate();
   subscribeFirebase();
   buildTicketLinesUI();
-
   document.getElementById('ticket-lines').addEventListener('change', buildTicketLinesUI);
+  startNextDrawCountdown();
+  fetchLiveDrawData();
 }
 
 function doLogout() {
   currentUser = null; isAdmin = false;
+  if (countdownInterval) clearInterval(countdownInterval);
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('auth-pass').value = '';
   document.getElementById('auth-name').value = '';
 }
 
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 //  TABS
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -991,37 +882,367 @@ function switchTab(tab) {
   document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
 }
 
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 //  FIREBASE SUBSCRIPTIONS
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 function subscribeFirebase() {
   db.ref('draws').on('value', snap => {
     allDraws = snap.val() || {};
-    renderDraws();
-    renderDashboard();
-    updateDrawSelects();
+    renderDraws(); renderDashboard(); updateDrawSelects();
   });
-
   db.ref('tickets').on('value', snap => {
     allTickets = snap.val() || {};
     renderTickets();
   });
-
   db.ref('wins').on('value', snap => {
     allWins = snap.val() || {};
-    renderWins();
-    renderDashboard();
+    renderWins(); renderDashboard();
+  });
+  db.ref('lottomaxDraws').on('value', snap => {
+    allLottoMax = snap.val() || {};
+    renderLottoMax();
+  });
+  db.ref('waves').on('value', snap => {
+    allWaves = snap.val() || {};
+    renderWaves(); renderDashboard();
   });
 }
 
-// ─────────────────────────────────────────────────
-//  DRAWS
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+//  HELPER: DEFAULT DATE
+// ════════════════════════════════════════════════════
 function setDefaultDate() {
-  const d = new Date();
-  document.getElementById('draw-date').value = d.toISOString().split('T')[0];
+  const d = new Date().toISOString().split('T')[0];
+  document.getElementById('draw-date').value = d;
+  document.getElementById('lm-date').value   = d;
+  document.getElementById('wave-deadline').value  = d;
+  document.getElementById('wave-drawdate').value  = nextLottoMaxDraw().toISOString().split('T')[0];
 }
 
+// ════════════════════════════════════════════════════
+//  NEXT DRAW CALCULATION
+// ════════════════════════════════════════════════════
+function nextLottoMaxDraw(fromDate) {
+  const now = fromDate ? new Date(fromDate) : new Date();
+  const day = now.getDay(); // 0=Sun … 6=Sat
+  // Lotto Max draws: Tuesday(2) and Friday(5)
+  const drawDays = [2, 5];
+  let minDays = 7;
+  for (const dd of drawDays) {
+    let diff = (dd - day + 7) % 7;
+    if (diff === 0) diff = 7; // if today IS a draw day, next one
+    if (diff < minDays) minDays = diff;
+  }
+  const next = new Date(now);
+  next.setDate(now.getDate() + minDays);
+  next.setHours(22, 30, 0, 0); // draws ~10:30pm ET
+  return next;
+}
+
+function startNextDrawCountdown() {
+  function update() {
+    const next = nextLottoMaxDraw();
+    const diff = next - Date.now();
+    if (diff <= 0) return;
+    const days    = Math.floor(diff / 86400000);
+    const hours   = Math.floor((diff % 86400000) / 3600000);
+    const mins    = Math.floor((diff % 3600000) / 60000);
+    const secs    = Math.floor((diff % 60000) / 1000);
+    const opts    = { weekday:'long', month:'long', day:'numeric' };
+    const dateStr = next.toLocaleDateString('en-CA', opts);
+    const cdStr   = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m ${secs}s`;
+
+    const el1 = document.getElementById('dash-next-date');
+    const el2 = document.getElementById('dash-countdown');
+    if (el1) el1.textContent = dateStr;
+    if (el2) el2.textContent = `in ${cdStr}`;
+
+    const el3 = document.getElementById('next-draw-date-text');
+    const el4 = document.getElementById('next-draw-countdown');
+    const el5 = document.getElementById('next-draw-banner');
+    if (el3) el3.textContent = dateStr;
+    if (el4) el4.textContent = `in ${cdStr}`;
+    if (el5) el5.style.display = 'flex';
+  }
+  update();
+  countdownInterval = setInterval(update, 1000);
+}
+
+// ════════════════════════════════════════════════════
+//  LIVE DRAW DATA
+// ════════════════════════════════════════════════════
+async function fetchLiveDrawData() {
+  const inner = document.getElementById('live-draw-inner');
+  inner.innerHTML = '<div class="live-loading"><div class="spinner"></div> Fetching live draw data…</div>';
+
+  // Try multiple CORS proxies + endpoints
+  const targets = [
+    'https://www.lottomax.ca/api/en/draw-result/latest',
+    'https://www.olg.ca/api/en/lottomax/draw-result/latest',
+  ];
+  const proxies = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  ];
+
+  let data = null;
+  for (const proxy of proxies) {
+    for (const target of targets) {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(proxy(target), { signal: controller.signal });
+        clearTimeout(tid);
+        if (!res.ok) continue;
+        const text = await res.text();
+        const json = JSON.parse(text);
+        // Try to extract numbers from various possible structures
+        const parsed = parseLottoResponse(json);
+        if (parsed) { data = parsed; break; }
+      } catch (e) { /* try next */ }
+    }
+    if (data) break;
+  }
+
+  if (data) {
+    renderLiveDrawCard(data);
+  } else {
+    inner.innerHTML = `
+      <div style="font-size:14px;color:#93c5fd;opacity:.85;">
+        ⚠️ Live data unavailable. <br>
+        <span style="font-size:12px;opacity:.7;">Results are manually entered by the admin below.</span>
+      </div>`;
+  }
+}
+
+function parseLottoResponse(json) {
+  if (!json) return null;
+  // Try various known structures
+  let date = json.drawDate || json.date || json.drawdate || (json.gameDetails && json.gameDetails.drawDate);
+  let jackpot = json.jackpot || json.jackpotAmount || json.prize || (json.gameDetails && json.gameDetails.jackpotAmount);
+  let numbers = json.winningNumbers || json.numbers || json.mainNumbers || (json.gameDetails && json.gameDetails.winningNumbers);
+  let bonus   = json.bonusNumber || json.bonus || json.extraNumber || (json.gameDetails && json.gameDetails.bonusNumber);
+
+  if (!numbers) return null;
+  if (typeof numbers === 'string') numbers = numbers.split(/[,\s]+/).filter(Boolean);
+
+  return { date, jackpot, numbers, bonus };
+}
+
+function renderLiveDrawCard(d) {
+  const inner = document.getElementById('live-draw-inner');
+  const dateStr = d.date ? new Date(d.date + (d.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('en-CA', {weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '—';
+  const jackpotStr = d.jackpot ? (typeof d.jackpot === 'number' ? '$' + (d.jackpot/1000000).toFixed(0) + ' Million' : d.jackpot) : '';
+
+  let ballsHTML = '';
+  if (Array.isArray(d.numbers)) {
+    ballsHTML = d.numbers.map(n => `<span class="live-ball main">${n}</span>`).join('');
+    if (d.bonus) ballsHTML += `<span class="live-ball bonus">${d.bonus}</span>`;
+  }
+
+  inner.innerHTML = `
+    <div class="live-date">${dateStr}</div>
+    ${jackpotStr ? `<div class="live-jackpot">💰 ${jackpotStr}</div>` : ''}
+    <div class="live-balls">${ballsHTML || '<span style="opacity:.6;font-size:13px">Numbers unavailable</span>'}</div>
+    ${d.bonus ? `<div style="font-size:12px;color:#93c5fd;margin-top:8px;">🏅 Bonus: ${d.bonus}</div>` : ''}
+  `;
+}
+
+// ════════════════════════════════════════════════════
+//  WAVES
+// ════════════════════════════════════════════════════
+function buildWavePaidGrid(gridId, existingPaid) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  grid.innerHTML = '';
+  MEMBERS.forEach(m => {
+    const isPaid = existingPaid && existingPaid[m];
+    const div = document.createElement('div');
+    div.className = 'member-check-item' + (isPaid ? ' checked' : '');
+    div.dataset.member = m;
+    div.innerHTML = `<input type="checkbox" /><span class="check-icon">${isPaid ? '✅' : '⬜'}</span><span>${m}</span>`;
+    div.addEventListener('click', () => {
+      div.classList.toggle('checked');
+      div.querySelector('.check-icon').textContent = div.classList.contains('checked') ? '✅' : '⬜';
+    });
+    grid.appendChild(div);
+  });
+}
+
+function getCheckedMembers(gridId) {
+  return [...document.querySelectorAll(`#${gridId} .member-check-item.checked`)].map(el => el.dataset.member);
+}
+
+function submitWave() {
+  const name   = document.getElementById('wave-name').value.trim();
+  const target = parseFloat(document.getElementById('wave-target').value) || 0;
+  const deadline = document.getElementById('wave-deadline').value;
+  const drawdate = document.getElementById('wave-drawdate').value;
+  const notes  = document.getElementById('wave-notes').value.trim();
+  if (!name) { showToast('Please enter a wave name.'); return; }
+  if (!drawdate) { showToast('Please enter the draw date.'); return; }
+
+  const paid = getCheckedMembers('wave-paid-grid');
+  const paidMap = {};
+  MEMBERS.forEach(m => { paidMap[m] = paid.includes(m); });
+
+  const wave = {
+    name, targetContribution: target, deadline, drawDate: drawdate,
+    paidMembers: paidMap,
+    ticketsBought: 0, numbersPlayed: [], outcome: '', notes,
+    createdBy: currentUser, createdAt: Date.now()
+  };
+  db.ref('waves').push(wave).then(() => {
+    showToast('Wave created! 🌊');
+    document.getElementById('wave-name').value  = '';
+    document.getElementById('wave-target').value = '';
+    document.getElementById('wave-notes').value  = '';
+    buildWavePaidGrid('wave-paid-grid');
+    setDefaultDate();
+  });
+}
+
+function openWaveEditModal(waveId) {
+  const w = allWaves[waveId];
+  if (!w) return;
+  document.getElementById('edit-wave-id').value      = waveId;
+  document.getElementById('edit-wave-name').value    = w.name || '';
+  document.getElementById('edit-wave-tickets').value = w.ticketsBought || 0;
+  document.getElementById('edit-wave-outcome').value = w.outcome || '';
+  document.getElementById('edit-wave-notes').value   = w.notes || '';
+  // Numbers: each line is an array
+  const linesArr = Array.isArray(w.numbersPlayed) ? w.numbersPlayed : [];
+  document.getElementById('edit-wave-numbers').value = linesArr.map(l => Array.isArray(l) ? l.join(',') : l).join('\n');
+  buildWavePaidGrid('wave-edit-paid-grid', w.paidMembers || {});
+  document.getElementById('wave-edit-modal').classList.add('open');
+}
+
+function closeWaveModal() {
+  document.getElementById('wave-edit-modal').classList.remove('open');
+}
+
+function saveWaveEdit() {
+  const id      = document.getElementById('edit-wave-id').value;
+  const name    = document.getElementById('edit-wave-name').value.trim();
+  const tickets = parseInt(document.getElementById('edit-wave-tickets').value) || 0;
+  const outcome = document.getElementById('edit-wave-outcome').value.trim();
+  const notes   = document.getElementById('edit-wave-notes').value.trim();
+  const rawNums = document.getElementById('edit-wave-numbers').value.trim();
+  const paid    = getCheckedMembers('wave-edit-paid-grid');
+  const paidMap = {};
+  MEMBERS.forEach(m => { paidMap[m] = paid.includes(m); });
+
+  const numbersPlayed = rawNums ? rawNums.split('\n').map(l => l.split(',').map(x => x.trim()).filter(Boolean)) : [];
+
+  db.ref('waves/' + id).update({ name, ticketsBought: tickets, outcome, notes, numbersPlayed, paidMembers: paidMap })
+    .then(() => { showToast('Wave updated!'); closeWaveModal(); });
+}
+
+function deleteWave(id) {
+  if (!confirm('Delete this wave?')) return;
+  db.ref('waves/' + id).remove().then(() => showToast('Wave deleted.'));
+}
+
+function renderWaves() {
+  const list    = document.getElementById('waves-list');
+  const countEl = document.getElementById('waves-count');
+  const keys    = Object.keys(allWaves).sort((a,b) => (allWaves[b].createdAt||0) - (allWaves[a].createdAt||0));
+  if (countEl) countEl.textContent = `${keys.length} wave${keys.length!==1?'s':''}`;
+  if (!keys.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🌊</div><p>No waves yet. Create one above!</p></div>';
+    return;
+  }
+  list.innerHTML = keys.map(k => waveCardHTML(k, allWaves[k])).join('');
+
+  // Render active waves on dashboard
+  const dashWavesList = document.getElementById('dash-waves-list');
+  const activeKeys    = keys.filter(k => !allWaves[k].outcome || !allWaves[k].outcome.trim());
+  if (dashWavesList) {
+    if (!activeKeys.length) {
+      dashWavesList.innerHTML = '<div class="empty-state"><div class="empty-icon">🌊</div><p>No active waves.</p></div>';
+    } else {
+      dashWavesList.innerHTML = '<div style="padding:16px;">' + activeKeys.slice(0,3).map(k => waveCardHTML(k, allWaves[k])).join('') + '</div>';
+    }
+  }
+}
+
+function waveCardHTML(key, w) {
+  const paid   = w.paidMembers || {};
+  const paidList   = MEMBERS.filter(m => paid[m]);
+  const unpaidList = MEMBERS.filter(m => !paid[m]);
+  const paidCount  = paidList.length;
+  const total      = MEMBERS.length;
+  const target     = (w.targetContribution || 0) * total;
+  const collected  = (w.targetContribution || 0) * paidCount;
+  const pct        = total > 0 ? Math.round((paidCount / total) * 100) : 0;
+  const drawDate   = w.drawDate ? new Date(w.drawDate + 'T12:00:00').toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'}) : '—';
+  const deadline   = w.deadline ? new Date(w.deadline + 'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'}) : '—';
+  const isPast     = w.outcome && w.outcome.trim();
+  const isComplete = paidCount === total;
+  const statusCls  = isPast ? 'past' : isComplete ? 'closed' : 'open';
+  const statusLbl  = isPast ? 'Closed' : isComplete ? 'All Paid ✓' : `${paidCount}/${total} Paid`;
+  const cardCls    = isPast ? 'past' : isComplete ? 'complete' : '';
+
+  let numbersHTML = '';
+  const lines = Array.isArray(w.numbersPlayed) ? w.numbersPlayed : [];
+  if (lines.length) {
+    numbersHTML = `<div class="wave-numbers-section">
+      <div class="wave-numbers-title">🎟️ Tickets Played</div>
+      ${lines.map((l,i) => `<div class="wave-ticket-line">
+        <span style="font-size:11px;color:var(--gray-400);min-width:20px">L${i+1}</span>
+        ${(Array.isArray(l)?l:[]).map(n=>`<span class="lm-ball white" style="width:26px;height:26px;font-size:10px;">${n}</span>`).join('')}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  let outcomeHTML = '';
+  if (w.outcome) {
+    const isWin = w.outcome.toLowerCase().includes('$') || w.outcome.toLowerCase().includes('win') || w.outcome.toLowerCase().includes('play');
+    outcomeHTML = `<div class="wave-outcome ${isWin ? 'win' : 'no-win'}">
+      ${isWin ? '🏆' : '😔'} Outcome: ${w.outcome}
+    </div>`;
+  }
+
+  return `<div class="wave-card ${cardCls}">
+    <div class="wave-header">
+      <div>
+        <div class="wave-name">${w.name || 'Untitled Wave'}</div>
+        <div class="wave-meta">
+          🗓️ Draw: ${drawDate} &nbsp;·&nbsp; ⏰ Deadline: ${deadline}
+          ${w.ticketsBought ? ` &nbsp;·&nbsp; 🎟️ ${w.ticketsBought} ticket${w.ticketsBought!==1?'s':''}` : ''}
+          ${w.targetContribution ? ` &nbsp;·&nbsp; 💵 $${w.targetContribution}/person` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span class="wave-status ${statusCls}">${statusLbl}</span>
+        ${isAdmin ? `<button class="btn btn-outline btn-sm" onclick="openWaveEditModal('${key}')">✏️ Edit</button>` : ''}
+        ${isAdmin ? `<button class="btn btn-outline btn-sm" onclick="deleteWave('${key}')" style="color:var(--red);border-color:var(--red)">Delete</button>` : ''}
+      </div>
+    </div>
+    <div class="wave-body">
+      <div class="wave-progress">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-500);">
+          <span>Contributions: $${collected.toFixed(0)} of $${target.toFixed(0)}</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="wave-progress-bar-wrap">
+          <div class="wave-progress-bar" style="width:${pct}%"></div>
+        </div>
+      </div>
+      <div class="wave-members-grid">
+        ${MEMBERS.map(m => `<span class="wave-member-chip ${paid[m] ? 'paid' : 'unpaid'}">${paid[m]?'✅':'❌'} ${m}</span>`).join('')}
+      </div>
+      ${numbersHTML}
+      ${outcomeHTML}
+      ${w.notes ? `<div style="font-size:12px;color:var(--gray-500);margin-top:8px;">📝 ${w.notes}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════
+//  DRAWS
+// ════════════════════════════════════════════════════
 function buildPaidMembersGrid() {
   const grid = document.getElementById('paid-members-grid');
   grid.innerHTML = '';
@@ -1029,7 +1250,7 @@ function buildPaidMembersGrid() {
     const div = document.createElement('div');
     div.className = 'member-check-item';
     div.dataset.member = m;
-    div.innerHTML = `<input type="checkbox" id="paid-${m}" /><span class="check-icon">⬜</span><span>${m}</span>`;
+    div.innerHTML = `<input type="checkbox" /><span class="check-icon">⬜</span><span>${m}</span>`;
     div.addEventListener('click', () => {
       div.classList.toggle('checked');
       div.querySelector('.check-icon').textContent = div.classList.contains('checked') ? '✅' : '⬜';
@@ -1039,8 +1260,7 @@ function buildPaidMembersGrid() {
 }
 
 function getPaidMembers() {
-  return [...document.querySelectorAll('#paid-members-grid .member-check-item.checked')]
-    .map(el => el.dataset.member);
+  return [...document.querySelectorAll('#paid-members-grid .member-check-item.checked')].map(el => el.dataset.member);
 }
 
 function submitDraw() {
@@ -1049,51 +1269,40 @@ function submitDraw() {
   const jackpot = document.getElementById('draw-jackpot').value.trim();
   const cost    = parseFloat(document.getElementById('draw-cost').value) || 0;
   const paid    = getPaidMembers();
-
   if (!date) { showToast('Please select a draw date.'); return; }
-
   const numInputs = [...document.querySelectorAll('.win-num')];
-  const numbers   = numInputs.slice(0, 5).map(i => i.value.trim()).filter(Boolean);
+  const numbers   = numInputs.slice(0,5).map(i => i.value.trim()).filter(Boolean);
   const pb        = numInputs[5].value.trim();
-
   const draw = {
     lottery, date, jackpot, costPerMember: cost,
     paidMembers: paid,
     winningNumbers: numbers.length ? numbers : null,
     powerball: pb || null,
-    createdBy: currentUser,
-    createdAt: Date.now()
+    createdBy: currentUser, createdAt: Date.now()
   };
-
   db.ref('draws').push(draw).then(() => {
     showToast('Draw saved! 🎫');
     document.getElementById('draw-jackpot').value = '';
     document.getElementById('draw-cost').value    = '';
     document.querySelectorAll('.win-num').forEach(i => i.value = '');
-    buildPaidMembersGrid();
-    setDefaultDate();
+    buildPaidMembersGrid(); setDefaultDate();
   });
 }
 
 function renderDraws() {
   const list = document.getElementById('draws-list');
-  const keys = Object.keys(allDraws).sort((a,b) =>
-    new Date(allDraws[b].date) - new Date(allDraws[a].date));
-
+  const keys = Object.keys(allDraws).sort((a,b) => new Date(allDraws[b].date) - new Date(allDraws[a].date));
   document.getElementById('draws-count').textContent = `${keys.length} draw${keys.length!==1?'s':''}`;
-
   if (!keys.length) {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">🎫</div><p>No draws yet.</p></div>';
     return;
   }
-
   list.innerHTML = keys.map(k => drawItemHTML(k, allDraws[k])).join('');
 }
 
 function drawItemHTML(key, d) {
-  const dateStr = d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const dateStr = d.date ? new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
   const paid = Array.isArray(d.paidMembers) ? d.paidMembers : [];
-
   let numHTML = '';
   if (d.winningNumbers && d.winningNumbers.length) {
     numHTML = `<div class="draw-numbers">` +
@@ -1101,13 +1310,11 @@ function drawItemHTML(key, d) {
       (d.powerball ? `<span class="ball pb">${d.powerball}</span>` : '') +
       `</div>`;
   }
-
   const hasWin = Object.values(allWins).some(w => w.drawId === key);
-
   return `<div class="draw-item">
-    <div class="draw-date-badge">${dateStr.split(',')[0]}<br><small>${d.date ? d.date.slice(0,4) : ''}</small></div>
+    <div class="draw-date-badge">${dateStr.split(',')[0]}<br><small>${d.date?d.date.slice(0,4):''}</small></div>
     <div class="draw-details">
-      <div class="draw-title">${d.lottery} — ${d.jackpot || 'Unknown jackpot'}</div>
+      <div class="draw-title">${d.lottery} — ${d.jackpot||'Unknown jackpot'}</div>
       <div class="draw-meta">$${(d.costPerMember||0).toFixed(2)}/member · ${paid.length} paid: ${paid.join(', ')||'—'}</div>
       ${numHTML}
     </div>
@@ -1121,13 +1328,11 @@ function deleteDraw(key) {
   db.ref('draws/' + key).remove().then(() => showToast('Draw deleted.'));
 }
 
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 //  TICKETS
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 function updateDrawSelects() {
-  const draws = Object.entries(allDraws)
-    .sort((a,b) => new Date(b[1].date) - new Date(a[1].date));
-
+  const draws = Object.entries(allDraws).sort((a,b) => new Date(b[1].date) - new Date(a[1].date));
   ['ticket-draw-select','win-draw-select'].forEach(id => {
     const sel = document.getElementById(id);
     const cur = sel.value;
@@ -1144,14 +1349,16 @@ function buildTicketLinesUI() {
   for (let i = 0; i < n; i++) {
     const div = document.createElement('div');
     div.className = 'form-group';
-    div.innerHTML = `<label>Line ${i+1} — Pick 5 white + 1 red</label>
+    div.innerHTML = `<label>Line ${i+1} — 7 numbers (1–50) + bonus</label>
       <div class="numbers-row">
-        <input type="number" class="tkt-num" data-line="${i}" min="1" max="69" placeholder="N1" />
-        <input type="number" class="tkt-num" data-line="${i}" min="1" max="69" placeholder="N2" />
-        <input type="number" class="tkt-num" data-line="${i}" min="1" max="69" placeholder="N3" />
-        <input type="number" class="tkt-num" data-line="${i}" min="1" max="69" placeholder="N4" />
-        <input type="number" class="tkt-num" data-line="${i}" min="1" max="69" placeholder="N5" />
-        <input type="number" class="tkt-pb"  data-line="${i}" min="1" max="26" placeholder="PB" style="border-color:#dc2626" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+1}" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+2}" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+3}" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+4}" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+5}" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+6}" />
+        <input type="number" class="tkt-num" data-line="${i}" min="1" max="50" placeholder="N${i*7+7}" />
+        <input type="number" class="tkt-pb"  data-line="${i}" min="1" max="50" placeholder="B" style="border-color:#b45309" />
       </div>`;
     container.appendChild(div);
   }
@@ -1160,7 +1367,6 @@ function buildTicketLinesUI() {
 function submitTicket() {
   const drawId = document.getElementById('ticket-draw-select').value;
   if (!drawId) { showToast('Please select a draw.'); return; }
-
   const n = parseInt(document.getElementById('ticket-lines').value) || 1;
   const lines = [];
   for (let i = 0; i < n; i++) {
@@ -1168,7 +1374,6 @@ function submitTicket() {
     const pb   = document.querySelector(`.tkt-pb[data-line="${i}"]`).value.trim();
     lines.push({ numbers: nums, powerball: pb });
   }
-
   db.ref('tickets').push({ drawId, lines, addedBy: currentUser, addedAt: Date.now() })
     .then(() => {
       showToast('Ticket saved! 🎟️');
@@ -1180,20 +1385,16 @@ function submitTicket() {
 function renderTickets() {
   const container = document.getElementById('tickets-list');
   const keys = Object.keys(allTickets);
-
   if (!keys.length) {
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">🎟️</div><p>No tickets yet.</p></div>';
     return;
   }
-
-  // Group by draw
   const byDraw = {};
   keys.forEach(k => {
     const t = allTickets[k];
     if (!byDraw[t.drawId]) byDraw[t.drawId] = [];
     byDraw[t.drawId].push({ id: k, ...t });
   });
-
   container.innerHTML = `<div class="ticket-grid">` +
     Object.entries(byDraw).map(([drawId, tickets]) => {
       const d = allDraws[drawId];
@@ -1201,7 +1402,7 @@ function renderTickets() {
       const linesHTML = tickets.flatMap(t => (t.lines||[]).map(l => `
         <div class="ticket-line">
           ${(l.numbers||[]).map(n=>`<span class="ball white">${n||'?'}</span>`).join('')}
-          ${l.powerball?`<span class="ball pb">${l.powerball}</span>`:''}
+          ${l.powerball?`<span class="ball mb">${l.powerball}</span>`:''}
         </div>`)).join('');
       return `<div class="ticket-card">
         <div class="ticket-draw-name">🎟️ ${drawName}</div>
@@ -1210,57 +1411,94 @@ function renderTickets() {
     }).join('') + `</div>`;
 }
 
-// ─────────────────────────────────────────────────
-//  WINS
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+//  WINS + ROI
+// ════════════════════════════════════════════════════
 function submitWin() {
   const drawId = document.getElementById('win-draw-select').value;
   const amount = parseFloat(document.getElementById('win-amount').value) || 0;
   const tier   = document.getElementById('win-tier').value;
   const notes  = document.getElementById('win-notes').value.trim();
-
   if (!drawId) { showToast('Please select a draw.'); return; }
   if (!amount) { showToast('Please enter the prize amount.'); return; }
-
-  const sharePerMember = amount / 7;
-
-  db.ref('wins').push({
-    drawId, amount, tier, notes,
-    sharePerMember,
-    recordedBy: currentUser,
-    recordedAt: Date.now()
-  }).then(() => {
-    showToast(`Win recorded! 🏆 $${amount.toLocaleString()} (${tier})`);
-    document.getElementById('win-amount').value  = '';
-    document.getElementById('win-notes').value   = '';
-    document.getElementById('win-draw-select').value = '';
-  });
+  const sharePerMember = amount / MEMBERS.length;
+  db.ref('wins').push({ drawId, amount, tier, notes, sharePerMember, recordedBy: currentUser, recordedAt: Date.now() })
+    .then(() => {
+      showToast(`Win recorded! 🏆 $${amount.toLocaleString()} (${tier})`);
+      document.getElementById('win-amount').value = '';
+      document.getElementById('win-notes').value  = '';
+      document.getElementById('win-draw-select').value = '';
+    });
 }
 
 function renderWins() {
   const container = document.getElementById('wins-list');
   const keys = Object.keys(allWins).sort((a,b) => allWins[b].recordedAt - allWins[a].recordedAt);
-
   if (!keys.length) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div><p>No wins recorded yet. Good luck!</p></div>';
-    return;
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div><p>No wins yet. Good luck!</p></div>';
+  } else {
+    container.innerHTML = '<div style="padding:16px;">' + keys.map(k => {
+      const w = allWins[k];
+      const d = allDraws[w.drawId];
+      const drawName = d ? `${d.lottery} — ${d.date}` : 'Unknown draw';
+      return `<div class="win-card">
+        <div class="win-emoji">🏆</div>
+        <div class="win-body">
+          <div class="win-amount">$${parseFloat(w.amount).toLocaleString()}</div>
+          <div class="win-meta">${w.tier} · ${drawName}</div>
+          ${w.notes ? `<div class="win-meta">${w.notes}</div>` : ''}
+          <div class="win-payout">💚 Each member receives: $${parseFloat(w.sharePerMember||w.amount/7).toFixed(2)}</div>
+        </div>
+        ${isAdmin ? `<button class="btn btn-outline btn-sm" onclick="deleteWin('${k}')">Delete</button>` : ''}
+      </div>`;
+    }).join('') + '</div>';
   }
+  updateROI();
+}
 
-  container.innerHTML = keys.map(k => {
-    const w = allWins[k];
-    const d = allDraws[w.drawId];
-    const drawName = d ? `${d.lottery} — ${d.date}` : 'Unknown draw';
-    return `<div class="win-card">
-      <div class="win-emoji">🏆</div>
-      <div class="win-body">
-        <div class="win-amount">$${parseFloat(w.amount).toLocaleString()}</div>
-        <div class="win-meta">${w.tier} · ${drawName}</div>
-        ${w.notes ? `<div class="win-meta">${w.notes}</div>` : ''}
-        <div class="win-payout">💚 Each member receives: $${parseFloat(w.sharePerMember||w.amount/7).toFixed(2)}</div>
-      </div>
-      ${isAdmin ? `<button class="btn btn-outline btn-sm" onclick="deleteWin('${k}')">Delete</button>` : ''}
-    </div>`;
-  }).join('');
+function updateROI() {
+  const totalWon = Object.values(allWins).reduce((s,w) => s + parseFloat(w.amount||0), 0);
+  const totalContributed = Object.values(allDraws).reduce((s,d) => {
+    const paid = Array.isArray(d.paidMembers) ? d.paidMembers.length : 0;
+    return s + (d.costPerMember||0) * paid;
+  }, 0);
+  // Also add wave contributions
+  const waveContributed = Object.values(allWaves).reduce((s,w) => {
+    const paid = w.paidMembers ? Object.values(w.paidMembers).filter(Boolean).length : 0;
+    return s + (w.targetContribution||0) * paid;
+  }, 0);
+  const total = totalContributed + waveContributed;
+  const net   = totalWon - total;
+  const pct   = total > 0 ? ((totalWon / total) * 100).toFixed(1) : 0;
+
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('stat-wins',      '$' + totalWon.toLocaleString(undefined,{minimumFractionDigits:0}));
+  setEl('stat-spent',     '$' + total.toLocaleString(undefined,{minimumFractionDigits:2}));
+  setEl('stat-roi',       pct + '%');
+
+  setEl('roi-contributed', '$' + total.toFixed(2));
+  setEl('roi-won',         '$' + totalWon.toFixed(2));
+  setEl('roi-net',         (net >= 0 ? '+' : '') + '$' + Math.abs(net).toFixed(2));
+  setEl('roi-pct',         pct + '%');
+
+  const netEl = document.getElementById('roi-net');
+  if (netEl) netEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const roiEl = document.getElementById('stat-roi');
+  if (roiEl) roiEl.style.color = parseFloat(pct) >= 100 ? 'var(--green)' : parseFloat(pct) >= 50 ? 'var(--gold)' : 'var(--red)';
+
+  const barEl = document.getElementById('roi-bar');
+  if (barEl) {
+    const barPct = total > 0 ? Math.min(100, (totalWon / total) * 100) : 0;
+    barEl.style.width = barPct + '%';
+    barEl.classList.toggle('negative', net < 0);
+  }
+  const labelEl = document.getElementById('roi-label-text');
+  if (labelEl) {
+    labelEl.textContent = total > 0
+      ? `Group has won back ${pct}% of total contributions (net: ${net >= 0 ? '+' : ''}$${net.toFixed(2)})`
+      : 'No contribution data yet';
+  }
 }
 
 function deleteWin(key) {
@@ -1268,46 +1506,47 @@ function deleteWin(key) {
   db.ref('wins/' + key).remove().then(() => showToast('Win deleted.'));
 }
 
-// ─────────────────────────────────────────────────
-//  MEMBERS PAGE
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+//  MEMBERS
+// ════════════════════════════════════════════════════
 function renderMembers() {
-  const tbody = document.getElementById('members-tbody');
+  const tbody  = document.getElementById('members-tbody');
   const detail = document.getElementById('contrib-detail-list');
-
   const drawList = Object.values(allDraws);
   const winList  = Object.values(allWins);
-
   const avatarColor = ['#16a34a','#2563eb','#dc2626','#ca8a04','#7c3aed','#0891b2','#be185d'];
 
   tbody.innerHTML = MEMBERS.map((m, i) => {
-    const joined = drawList.filter(d => Array.isArray(d.paidMembers) && d.paidMembers.includes(m)).length;
-    const totalPaid = drawList.reduce((sum, d) => {
+    const joined     = drawList.filter(d => Array.isArray(d.paidMembers) && d.paidMembers.includes(m)).length;
+    const totalPaid  = drawList.reduce((sum, d) => {
       if (Array.isArray(d.paidMembers) && d.paidMembers.includes(m)) return sum + (d.costPerMember||0);
       return sum;
     }, 0);
+    // Add wave contributions
+    const wavePaid = Object.values(allWaves).reduce((sum, w) => {
+      if (w.paidMembers && w.paidMembers[m]) return sum + (w.targetContribution||0);
+      return sum;
+    }, 0);
+    const totalContrib = totalPaid + wavePaid;
     const winnings = winList.reduce((sum, w) => sum + (parseFloat(w.sharePerMember)||0), 0);
-
+    const net = winnings - totalContrib;
     return `<tr>
       <td>
         <span class="member-avatar" style="background:${avatarColor[i%avatarColor.length]}">${m[0]}</span>
         ${m}${m===ADMIN_NAME?' <span class="badge-admin">ADMIN</span>':''}
       </td>
       <td>${joined}</td>
-      <td>$${totalPaid.toFixed(2)}</td>
-      <td style="color:var(--green); font-weight:600">$${winnings.toFixed(2)}</td>
+      <td>$${totalContrib.toFixed(2)}</td>
+      <td style="color:var(--green);font-weight:600">$${winnings.toFixed(2)}</td>
+      <td style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:600">${net>=0?'+':''} $${net.toFixed(2)}</td>
     </tr>`;
   }).join('');
 
-  // Contribution detail
-  const draws = Object.entries(allDraws)
-    .sort((a,b) => new Date(b[1].date) - new Date(a[1].date));
-
+  const draws = Object.entries(allDraws).sort((a,b) => new Date(b[1].date) - new Date(a[1].date));
   if (!draws.length) {
     detail.innerHTML = '<div class="empty-state"><div class="empty-icon">💵</div><p>No records yet.</p></div>';
     return;
   }
-
   detail.innerHTML = draws.map(([k,d]) => {
     const paid   = Array.isArray(d.paidMembers) ? d.paidMembers : [];
     const unpaid = MEMBERS.filter(m => !paid.includes(m));
@@ -1324,26 +1563,15 @@ function renderMembers() {
   }).join('');
 }
 
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 //  DASHBOARD
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 function renderDashboard() {
   const drawList = Object.entries(allDraws);
-  const winList  = Object.values(allWins);
+  document.getElementById('stat-draws').textContent = drawList.length;
+  updateROI();
 
-  document.getElementById('stat-draws').textContent  = drawList.length;
-  const totalWon   = winList.reduce((s,w) => s + parseFloat(w.amount||0), 0);
-  const totalSpent = Object.values(allDraws).reduce((s,d) => {
-    const paid = Array.isArray(d.paidMembers) ? d.paidMembers.length : 0;
-    return s + (d.costPerMember||0) * paid;
-  }, 0);
-  document.getElementById('stat-wins').textContent  = '$' + totalWon.toLocaleString();
-  document.getElementById('stat-spent').textContent = '$' + totalSpent.toLocaleString();
-
-  // Recent draws (last 5)
-  const recentDraws = drawList
-    .sort((a,b) => new Date(b[1].date) - new Date(a[1].date))
-    .slice(0, 5);
+  const recentDraws = drawList.sort((a,b) => new Date(b[1].date) - new Date(a[1].date)).slice(0, 5);
   const rdList = document.getElementById('recent-draws-list');
   if (!recentDraws.length) {
     rdList.innerHTML = '<div class="empty-state"><div class="empty-icon">🎫</div><p>No draws yet.</p></div>';
@@ -1351,7 +1579,6 @@ function renderDashboard() {
     rdList.innerHTML = recentDraws.map(([k,d]) => drawItemHTML(k,d)).join('');
   }
 
-  // Recent wins
   const winKeys = Object.keys(allWins).sort((a,b) => allWins[b].recordedAt - allWins[a].recordedAt).slice(0,3);
   const rwList  = document.getElementById('recent-wins-list');
   if (!winKeys.length) {
@@ -1360,20 +1587,238 @@ function renderDashboard() {
     rwList.innerHTML = winKeys.map(k => {
       const w = allWins[k];
       const d = allDraws[w.drawId];
-      return `<div style="padding:10px 0; border-bottom:1px solid var(--gray-100)">
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--gray-100)">
         <strong>🏆 $${parseFloat(w.amount).toLocaleString()}</strong> — ${w.tier}
         <div style="font-size:12px;color:var(--gray-500)">${d?d.lottery+' – '+d.date:'Unknown draw'}</div>
       </div>`;
     }).join('');
   }
-
-  // Also refresh members tab
   renderMembers();
+  renderWaves();
 }
 
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
+//  LOTTO MAX
+// ════════════════════════════════════════════════════
+function submitLottoMax() {
+  const date    = document.getElementById('lm-date').value;
+  const jackpot = document.getElementById('lm-jackpot').value.trim();
+  if (!date) { showToast('Please select a draw date.'); return; }
+  const mainNums = [...document.querySelectorAll('.lm-num')].map(i => i.value.trim()).filter(Boolean);
+  const bonus    = document.querySelector('.lm-bonus').value.trim();
+  db.ref('lottomaxDraws').push({ date, jackpot: jackpot||null, numbers: mainNums.length?mainNums:null, bonus: bonus||null, addedBy: currentUser, addedAt: Date.now() })
+    .then(() => {
+      showToast('Lotto Max draw saved! 🍀');
+      document.getElementById('lm-jackpot').value = '';
+      document.querySelectorAll('.lm-num, .lm-bonus').forEach(i => i.value = '');
+      document.getElementById('lm-date').value = new Date().toISOString().split('T')[0];
+    });
+}
+
+function renderLottoMax() {
+  const list    = document.getElementById('lm-draws-list');
+  const countEl = document.getElementById('lm-count');
+  const keys    = Object.keys(allLottoMax).sort((a,b) => new Date(allLottoMax[b].date) - new Date(allLottoMax[a].date));
+  countEl.textContent = `${keys.length} draw${keys.length!==1?'s':''}`;
+  if (!keys.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🍀</div><p>No Lotto Max draws recorded yet.</p></div>';
+    return;
+  }
+  list.innerHTML = keys.map(k => {
+    const d = allLottoMax[k];
+    const dateStr = d.date ? new Date(d.date+'T12:00:00').toLocaleDateString('en-CA',{weekday:'short',year:'numeric',month:'short',day:'numeric'}) : '—';
+    let ballsHTML = '';
+    if (d.numbers && d.numbers.length) {
+      ballsHTML = d.numbers.map(n=>`<span class="lm-ball white">${n}</span>`).join('');
+      if (d.bonus) ballsHTML += `<span class="lm-ball bonus">${d.bonus}</span>`;
+    } else {
+      ballsHTML = '<span style="font-size:13px;color:var(--gray-400)">Numbers not recorded</span>';
+    }
+    return `<div class="lm-draw-item">
+      <div class="lm-draw-header">
+        <div class="lm-date-badge">${dateStr}</div>
+        ${d.jackpot ? `<span class="lm-jackpot-badge">💰 ${d.jackpot}</span>` : ''}
+        ${isAdmin ? `<button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="deleteLottoMax('${k}')">Delete</button>` : ''}
+      </div>
+      <div class="draw-numbers">${ballsHTML}</div>
+      ${d.bonus ? `<div style="font-size:12px;color:var(--gray-500);margin-top:4px">🟤 Bonus: ${d.bonus}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function deleteLottoMax(key) {
+  if (!confirm('Delete this draw?')) return;
+  db.ref('lottomaxDraws/' + key).remove().then(() => showToast('Draw deleted.'));
+}
+
+// ════════════════════════════════════════════════════
+//  DREAM SCREEN 🌟
+// ════════════════════════════════════════════════════
+let dreamActive = false;
+let dreamAnimTimers = [];
+
+function openDreamScreen() {
+  if (dreamActive) return;
+  dreamActive = true;
+  const screen = document.getElementById('dream-screen');
+  screen.style.display = 'flex';
+  setTimeout(() => screen.classList.add('gold-bg'), 100);
+
+  spawnStars();
+  spawnRain();
+  spawnBursts();
+  startNumberReveal();
+
+  // Bursts repeat every 2.5s
+  dreamAnimTimers.push(setInterval(spawnBursts, 2500));
+}
+
+function closeDreamScreen() {
+  dreamActive = false;
+  dreamAnimTimers.forEach(t => clearInterval(t));
+  dreamAnimTimers = [];
+  const screen = document.getElementById('dream-screen');
+  screen.classList.remove('gold-bg');
+  screen.style.display = 'none';
+  document.getElementById('dream-rain').innerHTML   = '';
+  document.getElementById('dream-burst').innerHTML  = '';
+  document.getElementById('dream-stars').innerHTML  = '';
+  document.getElementById('dream-numbers').innerHTML = '';
+}
+
+function spawnStars() {
+  const container = document.getElementById('dream-stars');
+  container.innerHTML = '';
+  for (let i = 0; i < 60; i++) {
+    const star = document.createElement('div');
+    star.className = 'star-particle';
+    const size = 1 + Math.random() * 3;
+    star.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}vw; top:${Math.random()*100}vh;
+      animation-delay:${Math.random()*3}s;
+      animation-duration:${1.5 + Math.random()*2}s;
+    `;
+    container.appendChild(star);
+  }
+}
+
+function spawnRain() {
+  const container = document.getElementById('dream-rain');
+  container.innerHTML = '';
+  const emojis = ['💸','💰','🪙','💵','💴','💶','💷','🏅','🎊','✨','🌟','⭐'];
+  for (let i = 0; i < 35; i++) {
+    const el = document.createElement('div');
+    el.className = 'rain-sprite';
+    el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    const size = 18 + Math.random() * 28;
+    const dur  = 2.5 + Math.random() * 4;
+    const delay= Math.random() * 5;
+    el.style.cssText = `
+      left:${Math.random()*105}vw;
+      font-size:${size}px;
+      animation-duration:${dur}s;
+      animation-delay:${delay}s;
+    `;
+    container.appendChild(el);
+  }
+}
+
+function spawnBursts() {
+  const container = document.getElementById('dream-burst');
+  container.innerHTML = '';
+  const emojis = ['✨','🌟','⭐','🎊','🎉','💫','🥳','🎈','🏆','💎'];
+  const count  = 16 + Math.floor(Math.random()*10);
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'burst-sprite';
+    el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    const angle   = (i / count) * 360 + Math.random() * 30;
+    const dist    = 120 + Math.random() * 200;
+    const rad     = angle * Math.PI / 180;
+    const tx      = Math.cos(rad) * dist;
+    const ty      = Math.sin(rad) * dist;
+    const rot     = -180 + Math.random() * 360;
+    const dur     = 1.2 + Math.random() * 0.8;
+    const size    = 22 + Math.random() * 20;
+    // origin: random position around screen center
+    const ox = 30 + Math.random() * 40;
+    const oy = 30 + Math.random() * 40;
+    el.style.cssText = `
+      left:${ox}vw; top:${oy}vh;
+      font-size:${size}px;
+      --bx:${tx}px; --by:${ty}px; --br:${rot}deg;
+      animation-duration:${dur}s;
+      animation-delay:${Math.random()*0.4}s;
+    `;
+    container.appendChild(el);
+  }
+  // Clean up after animation
+  setTimeout(() => { if (container) container.innerHTML = ''; }, 2600);
+}
+
+function startNumberReveal() {
+  const container = document.getElementById('dream-numbers');
+  container.innerHTML = '';
+  // Pick 7 random Lotto Max-style numbers
+  const nums = [];
+  while (nums.length < 7) {
+    const n = Math.floor(Math.random() * 50) + 1;
+    if (!nums.includes(n)) nums.push(n);
+  }
+  nums.sort((a,b) => a-b);
+  const bonus = Math.floor(Math.random() * 50) + 1;
+
+  nums.forEach((n, i) => {
+    const el = document.createElement('div');
+    el.className = 'jackpot-num';
+    el.textContent = '?';
+    container.appendChild(el);
+    const t = setTimeout(() => {
+      el.textContent = n;
+      el.classList.add('reveal');
+    }, 600 + i * 300);
+    dreamAnimTimers.push(t);
+  });
+
+  // Bonus
+  const bonusEl = document.createElement('div');
+  bonusEl.className = 'jackpot-num';
+  bonusEl.style.cssText = 'background:#fbbf24;color:#1e3a5f;';
+  bonusEl.textContent = '?';
+  container.appendChild(bonusEl);
+  const bt = setTimeout(() => {
+    bonusEl.textContent = bonus;
+    bonusEl.classList.add('reveal');
+  }, 600 + 7 * 300);
+  dreamAnimTimers.push(bt);
+
+  // Re-reveal every 6s
+  const reReveal = setInterval(() => {
+    if (!dreamActive) { clearInterval(reReveal); return; }
+    const allNums = container.querySelectorAll('.jackpot-num');
+    allNums.forEach(el => { el.classList.remove('reveal'); el.textContent = '?'; });
+    const newNums = [];
+    while (newNums.length < 7) {
+      const n = Math.floor(Math.random()*50)+1;
+      if (!newNums.includes(n)) newNums.push(n);
+    }
+    newNums.sort((a,b)=>a-b);
+    const newBonus = Math.floor(Math.random()*50)+1;
+    const all = [...newNums, newBonus];
+    allNums.forEach((el,i) => {
+      setTimeout(() => {
+        el.textContent = all[i];
+        el.classList.add('reveal');
+      }, i * 200);
+    });
+  }, 6000);
+  dreamAnimTimers.push(reReveal);
+}
+
+// ════════════════════════════════════════════════════
 //  TOAST
-// ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
